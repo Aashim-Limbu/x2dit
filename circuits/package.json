@@ -1,0 +1,8 @@
+{
+  "name": "zk-bridge-circuits",
+  "private": true,
+  "scripts": {
+    "compile": "circom src/withdraw.circom --r1cs --wasm --sym -o build -l src",
+    "test": "node --test test/"
+  }
+}
