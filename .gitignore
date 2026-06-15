@@ -29,3 +29,6 @@ circuits/build/
 # OS / editor
 .DS_Store
 *.swp
+
+# Foundry deps (re-install via 'forge install')
+spike/sol/lib/

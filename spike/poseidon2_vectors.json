@@ -1,0 +1,17 @@
+{
+  "_note": "Canonical Poseidon2 cross-surface vectors. Source of truth = actual circom witness (keystone.circom @ circom 2.2.2, fork templates @ e6a69f0), confirmed 2026-06-15. Every surface (Rust relayer, Solidity EVM tree, frontend) MUST reproduce these byte-for-byte.",
+  "inputs": { "l": "1", "r": "2", "domainSeparation": "0" },
+  "hash2": {
+    "arity": "Poseidon2(2) -> Permutation(3), t=3, commitment form",
+    "hex": "0x2afac3bdc3663b71eefeecdf21b147d0ba7dd7a169a7757c05ed6bfb065bffd2"
+  },
+  "compress": {
+    "arity": "PoseidonCompress() -> Permutation(2), t=2, Merkle node = Perm2([l,r])[0] + l",
+    "hex": "0x0e90c132311e864e0c8bca37976f28579a2dd9436bbc11326e21ec7c00cea5b3"
+  },
+  "nullifierHash": {
+    "arity": "Poseidon2(1) -> Permutation(2), t=2, domainSeparation=0",
+    "input": "l",
+    "hex": "0x09546fe32f579f77c33ffb629a91ed18c4594804519846d143d3c1ba79b04d54"
+  }
+}

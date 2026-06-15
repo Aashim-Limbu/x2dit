@@ -1,0 +1,13 @@
+# Toolchain pins for the spike (verified 2026-06-15). Do not bump without re-running Task 2 & Task 3.
+reference_repo      = NethermindEth/stellar-private-payments
+reference_head_sha  = e6a69f0752cb555bdb6020f9f29be1a36ced1a3e   # 2026-06-12 (vendored, gitignored)
+rust                = 1.92.0   # via vendor/rust-toolchain.toml; host has stable 1.94.1 + 1.93.0 (>=1.85 required, C1)
+rust_edition        = 2024
+rust_targets        = wasm32v1-none, wasm32-unknown-unknown
+soroban_sdk         = 26 (features = ["hazmat"])
+stellar_cli         = 26.1.0   # Protocol 26 "Yardstick"; installed from prebuilt release binary
+circom              = 2.2.2    # built from source (iden3/circom @ v2.2.2) — C6
+snarkjs             = 0.7.5
+node                = 24.14.1  # host version; plan pinned 22 (C7), 24 works for circom/snarkjs/Next.js
+ark_{bn254,ff,groth16} = 0.5   # off-chain relayer only; Soroban verifier uses BN254 host fns (C4)
+foundry/forge       = 1.5.1
