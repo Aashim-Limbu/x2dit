@@ -7,7 +7,20 @@ edition = "2021"
 name = "relayer"
 path = "src/lib.rs"
 
+[[bin]]
+name = "relayer"
+path = "src/main.rs"
+
 [dependencies]
 ark-ff = "0.6"
-# C3: the SAME Poseidon2 the circuit/keystone use — vendored zkhash path crate (instances _2/_3).
+# C3: same Poseidon2 as circuit/keystone — vendored zkhash (instances _2/_3).
 zkhash = { path = "../vendor/stellar-private-payments/poseidon2" }
+# Lightweight relayer deps (MVP: avoids the heavy alloy/axum/tokio compile).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+hex = "0.4"
+ureq = { version = "2", features = ["json"] }
+tiny-keccak = { version = "2", features = ["keccak"] }
