@@ -6,8 +6,9 @@
 pragma solidity ^0.8.24;
 
 import {IHasher} from "./IHasher.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MerkleTreeWithHistory {
+contract MerkleTreeWithHistory is Ownable {
     uint256 public constant FIELD_SIZE =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
     uint32 public constant ROOT_HISTORY_SIZE = 30;
@@ -21,7 +22,7 @@ contract MerkleTreeWithHistory {
     uint32 public currentRootIndex = 0;
     uint32 public nextIndex = 0;
 
-    constructor(uint32 _levels, IHasher _hasher, uint256 _zeroValue) {
+    constructor(uint32 _levels, IHasher _hasher, uint256 _zeroValue) Ownable(msg.sender) {
         require(_levels == 20, "this build hardcodes zeros for levels=20");
         require(_zeroValue == _zeros(0), "zeroValue must match hardcoded zeros[0]");
         levels = _levels;
@@ -117,5 +118,10 @@ contract MerkleTreeWithHistory {
 
     function getLastRoot() public view returns (uint256) {
         return roots[currentRootIndex];
+    }
+
+    /// @notice Owner (the PrivacyPoolDeposit that deployed this tree) inserts a leaf.
+    function insertLeaf(uint256 leaf) external onlyOwner returns (uint32) {
+        return _insert(leaf);
     }
 }
