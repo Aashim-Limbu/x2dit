@@ -1,0 +1,4 @@
+# Foundry
+cache/
+out/
+# broadcast/ kept intentionally as the deployment record (addresses + tx hashes only)
