@@ -77,7 +77,8 @@ async fn main() -> Result<()> {
         Cmd::ConvertProof { proof, public } => {
             let proof_json = std::fs::read_to_string(&proof)?;
             let (a, b, c) = relayer::proofconv::proof_abc(&proof_json)?;
-            let mut out = serde_json::json!({ "proof": { "a": a, "b": b, "c": c } });
+            let abc = serde_json::json!({ "a": a, "b": b, "c": c });
+            let mut out = serde_json::json!({ "proof": abc.to_string() });
             if let Some(pub_path) = public {
                 let public_json = std::fs::read_to_string(&pub_path)?;
                 let (root, nh, rfr, denom) = relayer::proofconv::public_fields(&public_json)?;
