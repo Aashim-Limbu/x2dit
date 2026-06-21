@@ -75,42 +75,71 @@ pub fn current_block(rpc: &str) -> Result<u64> {
     Ok(u64::from_str_radix(s.trim_start_matches("0x"), 16)?)
 }
 
-pub fn fetch_root_updates(rpc: &str, contract: &str, from_block: u64, to_block: u64) -> Result<Vec<RootLog>> {
-    let body = json!({
-        "jsonrpc": "2.0", "id": 1, "method": "eth_getLogs",
-        "params": [{
-            "address": contract,
-            "topics": [root_updated_topic0()],
-            "fromBlock": format!("0x{:x}", from_block),
-            "toBlock": format!("0x{:x}", to_block)
-        }]
-    });
-    let resp: serde_json::Value = ureq::post(rpc).send_json(body)?.into_json()?;
-    if let Some(e) = resp.get("error") { return Err(anyhow!("eth_getLogs error: {e}")); }
-    let logs = resp["result"].as_array().ok_or_else(|| anyhow!("no result array"))?;
+/// Split an inclusive [from, to] range into <= `window`-block chunks.
+pub fn plan_windows(from: u64, to: u64, window: u64) -> Vec<(u64, u64)> {
     let mut out = Vec::new();
-    for log in logs { out.push(decode_root_log(log)?); }
+    if window == 0 || to < from {
+        return out;
+    }
+    let mut start = from;
+    loop {
+        let end = core::cmp::min(start + window - 1, to);
+        out.push((start, end));
+        if end >= to {
+            break;
+        }
+        start = end + 1;
+    }
+    out
+}
+
+/// Page an eth_getLogs query for `topic0` over [from, to] in <= `window`-block
+/// chunks and return the raw log values (free-tier RPCs cap the per-call span).
+fn get_logs_chunked(
+    rpc: &str, contract: &str, topic0: &str, from: u64, to: u64, window: u64,
+) -> Result<Vec<serde_json::Value>> {
+    let mut all = Vec::new();
+    for (start, end) in plan_windows(from, to, window) {
+        let body = json!({
+            "jsonrpc": "2.0", "id": 1, "method": "eth_getLogs",
+            "params": [{
+                "address": contract,
+                "topics": [topic0],
+                "fromBlock": format!("0x{:x}", start),
+                "toBlock": format!("0x{:x}", end)
+            }]
+        });
+        let resp: serde_json::Value = ureq::post(rpc).send_json(body)?.into_json()?;
+        if let Some(e) = resp.get("error") {
+            return Err(anyhow!("eth_getLogs error: {e}"));
+        }
+        let logs = resp["result"].as_array().ok_or_else(|| anyhow!("no result array"))?;
+        all.extend(logs.iter().cloned());
+    }
+    Ok(all)
+}
+
+pub fn fetch_root_updates(
+    rpc: &str, contract: &str, from_block: u64, to_block: u64, window: u64,
+) -> Result<Vec<RootLog>> {
+    let logs = get_logs_chunked(rpc, contract, &root_updated_topic0(), from_block, to_block, window)?;
+    let mut out = Vec::new();
+    for log in &logs {
+        out.push(decode_root_log(log)?);
+    }
     out.sort_by_key(|r| r.block);
     Ok(out)
 }
 
-pub fn fetch_deposits(rpc: &str, contract: &str, from_block: u64) -> Result<Vec<DepositLog>> {
-    let body = json!({
-        "jsonrpc": "2.0", "id": 1, "method": "eth_getLogs",
-        "params": [{
-            "address": contract,
-            "topics": [deposit_topic0()],
-            "fromBlock": format!("0x{:x}", from_block),
-            "toBlock": "latest"
-        }]
-    });
-    let resp: serde_json::Value = ureq::post(rpc).send_json(body)?.into_json()?;
-    if let Some(e) = resp.get("error") {
-        return Err(anyhow!("eth_getLogs error: {e}"));
-    }
-    let logs = resp["result"].as_array().ok_or_else(|| anyhow!("no result array"))?;
+pub fn fetch_deposits(
+    rpc: &str, contract: &str, from_block: u64, window: u64,
+) -> Result<Vec<DepositLog>> {
+    let head = current_block(rpc)?;
+    let logs = get_logs_chunked(rpc, contract, &deposit_topic0(), from_block, head, window)?;
     let mut out = Vec::new();
-    for log in logs { out.push(decode_deposit_log(log)?); }
+    for log in &logs {
+        out.push(decode_deposit_log(log)?);
+    }
     out.sort_by_key(|d| d.leaf_index);
     Ok(out)
 }

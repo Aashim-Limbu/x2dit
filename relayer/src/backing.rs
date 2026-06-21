@@ -75,7 +75,8 @@ async fn tick(cfg: &Config, denoms: &[u32], state: &mut BackingState, state_path
     }
     let events = {
         let (rpc, contract) = (rpc.clone(), contract.clone());
-        tokio::task::spawn_blocking(move || evm::fetch_root_updates(&rpc, &contract, from_block, to_block))
+        let window = cfg.log_window_blocks;
+        tokio::task::spawn_blocking(move || evm::fetch_root_updates(&rpc, &contract, from_block, to_block, window))
             .await??
     };
     let actions = decide(state, denoms, &events);

@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
             let cfg = Config::from_path(&cli.config)?;
             let idx = relayer::withdrawal::denom_index_of(&cfg.denoms, denom)
                 .ok_or_else(|| anyhow::anyhow!("denom {denom} not configured"))?;
-            let deposits = evm::fetch_deposits(&cfg.evm_rpc, &cfg.deposit_contract, cfg.from_block)?;
+            let deposits = evm::fetch_deposits(&cfg.evm_rpc, &cfg.deposit_contract, cfg.from_block, cfg.log_window_blocks)?;
             let leaves: Vec<Fr> = deposits
                 .iter()
                 .filter(|d| d.denom_index as usize == idx)

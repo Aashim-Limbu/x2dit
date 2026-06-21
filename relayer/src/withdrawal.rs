@@ -64,7 +64,8 @@ async fn path_handler(State(st): State<AppState>, Query(q): Query<PathQuery>) ->
         return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": format!("denom {} not configured", q.denom)}))).into_response();
     };
     let (rpc, contract, from_block) = (st.cfg.evm_rpc.clone(), st.cfg.deposit_contract.clone(), st.cfg.from_block);
-    let deposits = match tokio::task::spawn_blocking(move || evm::fetch_deposits(&rpc, &contract, from_block)).await {
+    let window = st.cfg.log_window_blocks;
+    let deposits = match tokio::task::spawn_blocking(move || evm::fetch_deposits(&rpc, &contract, from_block, window)).await {
         Ok(Ok(d)) => d,
         Ok(Err(e)) => return (StatusCode::BAD_GATEWAY, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),

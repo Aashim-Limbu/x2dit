@@ -1,6 +1,14 @@
 use serde_json::json;
 
 #[test]
+fn plan_windows_splits_inclusive_ranges() {
+    assert_eq!(relayer::evm::plan_windows(0, 25, 10), vec![(0, 9), (10, 19), (20, 25)]);
+    assert_eq!(relayer::evm::plan_windows(5, 5, 10), vec![(5, 5)]);
+    assert_eq!(relayer::evm::plan_windows(10, 5, 10), Vec::<(u64, u64)>::new()); // from > to
+    assert_eq!(relayer::evm::plan_windows(0, 100, 0), Vec::<(u64, u64)>::new()); // window 0 guard
+}
+
+#[test]
 fn decodes_deposit_log() {
     // Deposit(uint8 idx=1, uint256 commitment=0x..0a, uint32 leafIndex=3)
     let log = json!({
