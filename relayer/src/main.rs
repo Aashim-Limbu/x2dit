@@ -26,6 +26,14 @@ enum Cmd {
     },
     /// Run the withdrawal HTTP server (GET /path, POST /withdraw, GET /health).
     Serve,
+    /// Convert a snarkjs proof.json (+ optional public.json) into the JSON that
+    /// `withdraw --proof` accepts (and the root/nullifier_hash/recipient_fr/denom).
+    ConvertProof {
+        #[arg(long)]
+        proof: String,
+        #[arg(long)]
+        public: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -65,6 +73,20 @@ async fn main() -> Result<()> {
         Cmd::Serve => {
             let cfg = Config::from_path(&cli.config)?;
             relayer::withdrawal::serve(cfg).await?;
+        }
+        Cmd::ConvertProof { proof, public } => {
+            let proof_json = std::fs::read_to_string(&proof)?;
+            let (a, b, c) = relayer::proofconv::proof_abc(&proof_json)?;
+            let mut out = serde_json::json!({ "proof": { "a": a, "b": b, "c": c } });
+            if let Some(pub_path) = public {
+                let public_json = std::fs::read_to_string(&pub_path)?;
+                let (root, nh, rfr, denom) = relayer::proofconv::public_fields(&public_json)?;
+                out["root"] = serde_json::Value::String(root);
+                out["nullifier_hash"] = serde_json::Value::String(nh);
+                out["recipient_fr"] = serde_json::Value::String(rfr);
+                out["denom"] = serde_json::Value::Number(denom.into());
+            }
+            println!("{}", serde_json::to_string_pretty(&out)?);
         }
     }
     Ok(())
