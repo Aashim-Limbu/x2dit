@@ -1,6 +1,16 @@
 //! Typed relayer configuration (TOML).
 use serde::Deserialize;
 
+fn default_poll_interval() -> u64 {
+    15
+}
+fn default_confirmations() -> u64 {
+    2
+}
+fn default_http_bind() -> String {
+    "127.0.0.1:8080".to_string()
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     /// EVM (Sepolia) JSON-RPC URL.
@@ -20,6 +30,15 @@ pub struct Config {
     /// EVM block to start scanning from.
     #[serde(default)]
     pub from_block: u64,
+    /// Backing daemon loop cadence (seconds).
+    #[serde(default = "default_poll_interval")]
+    pub poll_interval_secs: u64,
+    /// Scan only up to head - confirmations (EVM reorg safety).
+    #[serde(default = "default_confirmations")]
+    pub confirmations: u64,
+    /// Withdrawal HTTP server bind address.
+    #[serde(default = "default_http_bind")]
+    pub http_bind: String,
 }
 
 impl Config {
