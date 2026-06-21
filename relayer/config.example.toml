@@ -11,3 +11,4 @@ from_block         = 11089276
 poll_interval_secs = 15
 confirmations      = 2
 http_bind          = "127.0.0.1:8080"
+log_window_blocks  = 9             # max blocks per eth_getLogs (raise on a paid RPC)

@@ -10,6 +10,9 @@ fn default_confirmations() -> u64 {
 fn default_http_bind() -> String {
     "127.0.0.1:8080".to_string()
 }
+fn default_log_window() -> u64 {
+    9
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
@@ -39,6 +42,9 @@ pub struct Config {
     /// Withdrawal HTTP server bind address.
     #[serde(default = "default_http_bind")]
     pub http_bind: String,
+    /// Max block span per eth_getLogs call (free RPCs cap this; Alchemy free = 10).
+    #[serde(default = "default_log_window")]
+    pub log_window_blocks: u64,
 }
 
 impl Config {

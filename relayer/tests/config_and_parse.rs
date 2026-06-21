@@ -45,6 +45,7 @@ denoms = [1, 10, 100]
     assert_eq!(cfg.confirmations, 2);
     assert_eq!(cfg.http_bind, "127.0.0.1:8080");
     assert_eq!(cfg.from_block, 0);
+    assert_eq!(cfg.log_window_blocks, 9);
 }
 
 #[test]
