@@ -19,6 +19,11 @@ enum Cmd {
     Path { #[arg(long)] denom: u8, #[arg(long)] leaf_index: usize },
     /// One backing pass: not yet wired to NewRoot scan (needs deployed deposit contract).
     BackingOnce { #[arg(long)] denom: u32, #[arg(long)] root: String },
+    /// Run the continuous backing daemon (poll RootUpdated -> Pool.update_root).
+    Backing {
+        #[arg(long, default_value = "backing-state.json")]
+        state: String,
+    },
 }
 
 #[tokio::main]
@@ -48,6 +53,10 @@ async fn main() -> Result<()> {
                 &cfg.pool_id, &cfg.stellar_network, &cfg.soroban_rpc, &cfg.stellar_identity, denom, &root,
             ).await?;
             println!("anchored root for denom {denom}, tx {tx}");
+        }
+        Cmd::Backing { state } => {
+            let cfg = Config::from_path(&cli.config)?;
+            relayer::backing::run_daemon(&cfg, &state).await?;
         }
     }
     Ok(())
