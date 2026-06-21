@@ -13,6 +13,25 @@ pub fn extract_tx_hash(output: &str) -> Option<String> {
     None
 }
 
+/// Strip a leading `0x` so a hex string parses as the CLI's `BytesN<32>` arg
+/// (the `stellar` CLI wants bare 64-hex, not `0x`-prefixed).
+pub fn strip0x(s: &str) -> String {
+    s.strip_prefix("0x").unwrap_or(s).to_string()
+}
+
+/// Resolve a network name to its passphrase. We pass `--rpc-url` + an explicit
+/// `--network-passphrase` (rather than `--network <alias>`) so submission does
+/// not depend on a correctly-configured local CLI network alias. An unrecognized
+/// value is treated as a literal passphrase, so a caller can pass one directly.
+pub fn passphrase_for(network: &str) -> &str {
+    match network {
+        "testnet" => "Test SDF Network ; September 2015",
+        "mainnet" | "pubnet" | "public" => "Public Global Stellar Network ; September 2015",
+        "futurenet" => "Test SDF Future Network ; October 2022",
+        other => other,
+    }
+}
+
 async fn invoke(args: &[String]) -> Result<String> {
     let out = Command::new("stellar").args(args).output().await?;
     let stdout = String::from_utf8_lossy(&out.stdout);
@@ -31,12 +50,12 @@ pub async fn update_root(
         "contract".into(), "invoke".into(),
         "--id".into(), pool_id.into(),
         "--source-account".into(), identity.into(),
-        "--network".into(), network.into(),
         "--rpc-url".into(), rpc.into(),
+        "--network-passphrase".into(), passphrase_for(network).into(),
         "--send".into(), "yes".into(),
         "--".into(), "update_root".into(),
         "--denom".into(), denom.to_string(),
-        "--root".into(), root_hex.into(),
+        "--root".into(), strip0x(root_hex),
     ];
     let out = invoke(&args).await?;
     extract_tx_hash(&out).ok_or_else(|| anyhow!("no tx hash in output: {out}"))
@@ -54,14 +73,14 @@ pub async fn withdraw(
         "contract".into(), "invoke".into(),
         "--id".into(), pool_id.into(),
         "--source-account".into(), identity.into(),
-        "--network".into(), network.into(),
         "--rpc-url".into(), rpc.into(),
+        "--network-passphrase".into(), passphrase_for(network).into(),
         "--send".into(), "yes".into(),
         "--".into(), "withdraw".into(),
         "--proof".into(), proof_json.into(),
-        "--root".into(), root_hex.into(),
-        "--nullifier_hash".into(), nullifier_hash_hex.into(),
-        "--recipient_fr".into(), recipient_fr_hex.into(),
+        "--root".into(), strip0x(root_hex),
+        "--nullifier_hash".into(), strip0x(nullifier_hash_hex),
+        "--recipient_fr".into(), strip0x(recipient_fr_hex),
         "--recipient".into(), recipient.into(),
         "--denom".into(), denom.to_string(),
     ];

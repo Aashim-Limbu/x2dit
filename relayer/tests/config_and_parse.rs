@@ -1,5 +1,5 @@
 use relayer::config::Config;
-use relayer::soroban::extract_tx_hash;
+use relayer::soroban::{extract_tx_hash, passphrase_for, strip0x};
 
 #[test]
 fn parses_config_toml() {
@@ -45,4 +45,20 @@ denoms = [1, 10, 100]
     assert_eq!(cfg.confirmations, 2);
     assert_eq!(cfg.http_bind, "127.0.0.1:8080");
     assert_eq!(cfg.from_block, 0);
+}
+
+#[test]
+fn strip0x_makes_bare_hex_for_bytesn_args() {
+    // the stellar CLI rejects 0x-prefixed BytesN<32> args; we must pass bare hex.
+    assert_eq!(strip0x("0x1ee78083"), "1ee78083");
+    assert_eq!(strip0x("1ee78083"), "1ee78083");
+    assert_eq!(strip0x(""), "");
+}
+
+#[test]
+fn passphrase_for_resolves_network_names() {
+    assert_eq!(passphrase_for("testnet"), "Test SDF Network ; September 2015");
+    assert_eq!(passphrase_for("mainnet"), "Public Global Stellar Network ; September 2015");
+    // unrecognized value is treated as a literal passphrase (pass-through)
+    assert_eq!(passphrase_for("Custom Passphrase"), "Custom Passphrase");
 }
