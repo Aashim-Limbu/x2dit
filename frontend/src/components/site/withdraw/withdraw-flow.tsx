@@ -16,17 +16,14 @@ import { CtaButton } from "@/components/site/cta-button";
 import { GlowOrb } from "@/components/site/glow-orb";
 import { cn } from "@/lib/utils";
 import { STELLAR, stellarExpert, truncate } from "@/lib/site";
+import { NOTE_PREFIX, decodeNote } from "@/lib/crypto/note";
+import { connectFreighter as connectStellar } from "@/lib/stellar/wallet";
+import { hasZusdcTrustline, addZusdcTrustline } from "@/lib/stellar/trustline";
+import { runWithdraw } from "@/lib/withdraw/run";
 import { ActRail } from "./act-rail";
 import { StageStep } from "./stage-step";
 import { StatusList } from "./status-list";
 import { RevealClimax } from "./reveal-climax";
-
-// ── mock facts (no SDKs; format-only) ─────────────────────────────────────────
-const NOTE_PREFIX = "zkh-note-v1:";
-const MOCK_NOTE = `${NOTE_PREFIX}aL9c2f7e4b1d8a06c3f95e2b7d40a1c8e6f3b9d2a7c4e10f8b6d3a9c5e2f7b04`;
-const AMOUNT_USDC = 100;
-const AMOUNT_ZUSDC = "100 zUSDC";
-const FREIGHTER_ADDR = "GDUNATWENXVS3JZQHQ7WTBWUEZG6RT3TBQ3T7XK7CV2YK7V2QH7N6QH";
 
 type Step =
   | "idle"
@@ -72,9 +69,17 @@ const PROOF_STAGES = [
   "Proof ready",
 ];
 
-function looksLikeNote(v: string): boolean {
-  const t = v.trim();
-  return t.startsWith(NOTE_PREFIX) && t.length > NOTE_PREFIX.length + 16;
+function decodeOk(v: string): { denom: number; leafIndex: number } | null {
+  try { const n = decodeNote(v); return { denom: n.denom, leafIndex: n.leafIndex }; }
+  catch { return null; }
+}
+
+function friendlyWithdrawError(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e);
+  if (m.includes("UnknownRoot")) return "The relayer hasn't anchored your deposit's root on Stellar yet. Wait ~a minute after depositing and try again.";
+  if (m.includes("NullifierAlreadyUsed")) return "This note has already been withdrawn. Each note withdraws once.";
+  if (m.includes("InvalidProof")) return "Proof rejected. Double-check you pasted the exact note from your deposit.";
+  return m || "Withdrawal failed.";
 }
 
 function looksLikeStellarAddr(v: string): boolean {
@@ -158,6 +163,11 @@ export function WithdrawFlow() {
   const [step, setStep] = useState<Step>("idle");
   const [note, setNote] = useState("");
   const [proofDone, setProofDone] = useState(0);
+  const [decoded, setDecoded] = useState<{ denom: number; leafIndex: number } | null>(null);
+  const [destAddr, setDestAddr] = useState<string>("");
+  const [trustlineReady, setTrustlineReady] = useState(false);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
 
   // destination
   const [destMode, setDestMode] = useState<"connected" | "fresh">("connected");
@@ -183,9 +193,11 @@ export function WithdrawFlow() {
   // ── actions ────────────────────────────────────────────────────────────────
   function onValidate() {
     setStep("validating");
+    const d = decodeOk(note);
     later(() => {
-      setStep(looksLikeNote(note) ? "ready" : "invalidNote");
-    }, 600);
+      if (d) { setDecoded(d); setStep("ready"); }
+      else setStep("invalidNote");
+    }, 300);
   }
 
   async function onPaste() {
@@ -210,35 +222,51 @@ export function WithdrawFlow() {
     e.target.value = "";
   }
 
-  function onProve() {
-    setStep("proving");
-    setProofDone(0);
-    PROOF_STAGES.forEach((_, i) => {
-      later(() => setProofDone(i + 1), 650 * (i + 1));
-    });
-    later(() => setStep("addressing"), 650 * PROOF_STAGES.length + 250);
+  async function onProve(recipient: string) {
+    setStep("proving"); setProofDone(0); setErrMsg(null);
+    try {
+      const stageToIdx: Record<string, number> = { path: 1, witness: 2, proof: 3, submit: 4 };
+      const { txHash: hash } = await runWithdraw(note, recipient, (s) => setProofDone(stageToIdx[s]));
+      setTxHash(hash);
+      setStep("revealing");
+    } catch (e) {
+      setErrMsg(friendlyWithdrawError(e));
+      setStep("error");
+    }
   }
 
-  function connectFreighter() {
-    if (freighterConnected || connectingFreighter) return;
-    setConnectingFreighter(true);
-    later(() => {
-      setConnectingFreighter(false);
+  async function connectFreighter() {
+    if (connectingFreighter) return;
+    setConnectingFreighter(true); setErrMsg(null);
+    try {
+      const addr = await connectStellar();
+      setDestAddr(addr);
+      const ok = await hasZusdcTrustline(addr);
+      setTrustlineReady(ok);
       setFreighterConnected(true);
-    }, 700);
+    } catch (e) {
+      setErrMsg(e instanceof Error ? e.message : "Freighter connection failed.");
+    } finally {
+      setConnectingFreighter(false);
+    }
+  }
+
+  async function addTrustline() {
+    setErrMsg(null);
+    try { await addZusdcTrustline(destAddr); setTrustlineReady(true); }
+    catch (e) { setErrMsg(e instanceof Error ? e.message : "Could not add trustline."); }
   }
 
   const destReady =
     destMode === "connected"
-      ? freighterConnected
+      ? freighterConnected && trustlineReady
       : looksLikeStellarAddr(pasteAddr);
-
-  const destAddress =
-    destMode === "connected" ? FREIGHTER_ADDR : pasteAddr.trim();
 
   function onReveal() {
     if (!destReady) return;
-    setStep("revealing");
+    const recipient = destMode === "connected" ? destAddr : pasteAddr.trim();
+    setDestAddr(recipient);
+    onProve(recipient);
   }
 
   function reset() {
@@ -246,6 +274,11 @@ export function WithdrawFlow() {
     timers.current = [];
     setNote("");
     setProofDone(0);
+    setDecoded(null);
+    setDestAddr("");
+    setTrustlineReady(false);
+    setTxHash(null);
+    setErrMsg(null);
     setDestMode("connected");
     setFreighterConnected(false);
     setConnectingFreighter(false);
@@ -317,19 +350,18 @@ export function WithdrawFlow() {
                     tabIndex={-1}
                     aria-hidden
                   />
-                  <button
-                    type="button"
-                    onClick={() => setNote(MOCK_NOTE)}
+                  <Link
+                    href="/deposit"
                     className="ml-auto rounded-sm text-xs text-faint underline decoration-hairline underline-offset-2 transition-colors hover:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                   >
-                    Use a demo note
-                  </button>
+                    No note yet?
+                  </Link>
                 </div>
               </div>
 
               <p className="flex items-center justify-center gap-2 text-xs text-muted-ink">
                 <ShieldCheck className="size-3.5 text-success" aria-hidden />
-                Your note never leaves your browser in this demo.
+                Your note never leaves your browser — the proof is generated locally.
               </p>
 
               <div className="flex flex-col items-center gap-2">
@@ -415,10 +447,10 @@ export function WithdrawFlow() {
                 <ul className="space-y-3">
                   <SummaryRow>
                     <span className="font-mono text-ink">
-                      {AMOUNT_USDC} USDC
+                      {decoded?.denom} USDC
                     </span>{" "}
                     <span className="text-muted-ink">→</span>{" "}
-                    <span className="font-mono text-ink">{AMOUNT_ZUSDC}</span>
+                    <span className="font-mono text-ink">{decoded?.denom} zUSDC</span>
                   </SummaryRow>
                   <SummaryRow>
                     Stellar pool{" "}
@@ -432,8 +464,8 @@ export function WithdrawFlow() {
                 </ul>
               </div>
               <div className="flex justify-center">
-                <CtaButton size="lg" onClick={onProve}>
-                  Generate proof
+                <CtaButton size="lg" onClick={() => setStep("addressing")}>
+                  Choose destination
                   <ArrowRight className="size-4" aria-hidden />
                 </CtaButton>
               </div>
@@ -513,10 +545,27 @@ export function WithdrawFlow() {
                         Use my connected Stellar wallet
                       </p>
                       {freighterConnected ? (
-                        <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-ink">
-                          <Check className="size-3.5 text-success" aria-hidden />
-                          {truncate(FREIGHTER_ADDR)}
-                        </p>
+                        <div className="mt-1 space-y-1.5">
+                          <p className="flex items-center gap-1.5 font-mono text-xs text-ink">
+                            <Check className="size-3.5 text-success" aria-hidden />
+                            {truncate(destAddr)}
+                          </p>
+                          {!trustlineReady && (
+                            <button
+                              type="button"
+                              onClick={addTrustline}
+                              className="rounded-sm text-xs text-primary-bright underline decoration-primary/40 underline-offset-2 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                            >
+                              Add zUSDC trustline
+                            </button>
+                          )}
+                          {trustlineReady && (
+                            <p className="flex items-center gap-1.5 text-xs text-success">
+                              <Check className="size-3.5" aria-hidden />
+                              zUSDC trustline active
+                            </p>
+                          )}
+                        </div>
                       ) : connectingFreighter ? (
                         <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-ink">
                           <Loader2
@@ -624,7 +673,9 @@ export function WithdrawFlow() {
                 {!destReady && (
                   <p className="text-xs text-faint">
                     {destMode === "connected"
-                      ? "Connect a wallet, or paste a fresh address."
+                      ? freighterConnected
+                        ? "Add the zUSDC trustline to continue."
+                        : "Connect a wallet, or paste a fresh address."
                       : "Enter a valid Stellar address first."}
                   </p>
                 )}
@@ -635,7 +686,7 @@ export function WithdrawFlow() {
           {/* ── REVEALING: the climax ───────────────────────────────────── */}
           {step === "revealing" && (
             <RevealClimax
-              figure={AMOUNT_ZUSDC}
+              figure={`${decoded?.denom ?? ""} zUSDC`}
               onDone={() => setStep("revealed")}
             />
           )}
@@ -663,14 +714,14 @@ export function WithdrawFlow() {
                 <ul className="space-y-3">
                   <SummaryRow icon="shield">
                     Received{" "}
-                    <span className="font-mono text-ink">{AMOUNT_ZUSDC}</span>
+                    <span className="font-mono text-ink">{decoded?.denom} zUSDC</span>
                   </SummaryRow>
                   <SummaryRow>
                     At{" "}
                     <ExplorerLink
-                      href={`https://stellar.expert/explorer/testnet/account/${destAddress}`}
+                      href={stellarExpert.account(destAddr)}
                     >
-                      {truncate(destAddress)}
+                      {truncate(destAddr)}
                     </ExplorerLink>{" "}
                     <span className="text-muted-ink">— a fresh address</span>
                   </SummaryRow>
@@ -682,6 +733,14 @@ export function WithdrawFlow() {
                       {truncate(STELLAR.zusdcSac)}
                     </ExplorerLink>
                   </SummaryRow>
+                  {txHash && (
+                    <SummaryRow>
+                      Stellar tx{" "}
+                      <ExplorerLink href={stellarExpert.tx(txHash)}>
+                        {truncate(txHash)}
+                      </ExplorerLink>
+                    </SummaryRow>
+                  )}
                 </ul>
               </div>
 
@@ -703,6 +762,28 @@ export function WithdrawFlow() {
                   <Info className="size-3.5 text-cyan" aria-hidden />
                   This note has been used. Each note withdraws once.
                 </p>
+              </div>
+            </section>
+          )}
+
+          {/* ── ERROR ───────────────────────────────────────────────────── */}
+          {step === "error" && (
+            <section className="space-y-7">
+              <StepHeading title="Something went wrong." />
+              <div className="mx-auto max-w-md rounded-xl border border-[var(--danger)] bg-surface p-5 shadow-panel">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle
+                    className="mt-0.5 size-5 shrink-0 text-[var(--danger)]"
+                    aria-hidden
+                  />
+                  <p className="text-sm text-ink">{errMsg}</p>
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <CtaButton size="lg" onClick={() => setStep("addressing")}>
+                  Try again
+                  <ArrowRight className="size-4" aria-hidden />
+                </CtaButton>
               </div>
             </section>
           )}
