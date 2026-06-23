@@ -5,8 +5,7 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { truncate } from "@/lib/site";
 import { connectWallet } from "@/lib/evm/client";
-
-type Status = "idle" | "connecting" | "connected";
+import { connectFreighter } from "@/lib/stellar/wallet";
 
 function EthGlyph({ className }: { className?: string }) {
   return (
@@ -94,37 +93,42 @@ function EvmChip({ glyph }: { glyph: React.ReactNode }) {
   );
 }
 
-/** Stellar chip: stub (wired in Task 17). Retains original mock toggle for shape. */
+/** Stellar chip: real Freighter connect (wired in Task 17). No programmatic disconnect. */
 function WalletChip({
   label,
-  address,
   glyph,
 }: {
   label: string;
-  address: string;
   glyph: React.ReactNode;
 }) {
-  const [status, setStatus] = useState<Status>("idle");
+  const [stellarAddress, setStellarAddress] = useState<string | null>(null);
+  const [stellarConnecting, setStellarConnecting] = useState(false);
 
-  function toggle() {
-    if (status === "connected") return setStatus("idle");
-    if (status === "connecting") return;
-    setStatus("connecting");
-    window.setTimeout(() => setStatus("connected"), 700);
+  async function toggleStellar() {
+    if (stellarAddress) return; // already connected; Freighter has no programmatic disconnect
+    if (stellarConnecting) return;
+    setStellarConnecting(true);
+    try {
+      setStellarAddress(await connectFreighter());
+    } catch {
+      /* user cancelled or Freighter not installed — leave disconnected, no crash */
+    } finally {
+      setStellarConnecting(false);
+    }
   }
 
-  const connected = status === "connected";
+  const connected = stellarAddress !== null;
 
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={toggleStellar}
       aria-label={
         connected
-          ? `${label} connected: ${address}. Click to disconnect.`
+          ? `${label} connected: ${stellarAddress}. Click to disconnect.`
           : `Connect ${label} wallet`
       }
-      title={connected ? address : `Connect ${label}`}
+      title={connected ? stellarAddress : `Connect ${label}`}
       className="group/chip flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
     >
       <span
@@ -137,7 +141,7 @@ function WalletChip({
       </span>
       <span className="flex flex-col leading-tight">
         <span className="text-[0.625rem] tracking-[0.02em] text-faint">{label}</span>
-        {status === "connecting" ? (
+        {stellarConnecting ? (
           // skeleton, not a spinner (DESIGN.md). Carries no meaning by color alone.
           <span className="mt-0.5 flex items-center gap-1.5 font-mono text-xs text-muted-ink">
             <span
@@ -149,7 +153,7 @@ function WalletChip({
         ) : connected ? (
           <span className="flex items-center gap-1.5 font-mono text-xs text-ink">
             <Check className="size-3 text-success" aria-hidden />
-            {truncate(address)}
+            {truncate(stellarAddress)}
           </span>
         ) : (
           <span className="font-mono text-xs text-muted-ink group-hover/chip:text-ink">
@@ -161,7 +165,7 @@ function WalletChip({
   );
 }
 
-/** Dual-wallet status bar. EVM chip wired to real injected-wallet connect; Stellar chip stubbed (Task 17). */
+/** Dual-wallet status bar. Both chips wired to real wallet connect; no programmatic disconnect. */
 export function WalletStatus({ className }: { className?: string }) {
   return (
     <div
@@ -171,11 +175,7 @@ export function WalletStatus({ className }: { className?: string }) {
       )}
     >
       <EvmChip glyph={<EthGlyph />} />
-      <WalletChip
-        label="Stellar"
-        address="GDUNATWENXVS3JZQHQ7WTBWUEZG6RT3TBQ3T7XK7CV2YK7V2QH7N6QH"
-        glyph={<StellarGlyph />}
-      />
+      <WalletChip label="Stellar" glyph={<StellarGlyph />} />
     </div>
   );
 }
