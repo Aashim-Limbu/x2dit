@@ -42,7 +42,7 @@ export async function signXdr(xdr: string, address: string): Promise<string> {
   ensureInit();
   const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
     address,
-    networkPassphrase: "Test SDF Network ; September 2015",
+    networkPassphrase: Networks.TESTNET,
   });
   return signedTxXdr;
 }

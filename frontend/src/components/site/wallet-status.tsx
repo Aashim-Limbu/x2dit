@@ -53,7 +53,7 @@ function EvmChip({ glyph }: { glyph: React.ReactNode }) {
       onClick={toggleEvm}
       aria-label={
         connected
-          ? `${label} connected: ${evmAddress}. Click to disconnect.`
+          ? `${label} connected: ${evmAddress}`
           : `Connect ${label} wallet`
       }
       title={connected ? evmAddress : `Connect ${label}`}
@@ -125,7 +125,7 @@ function WalletChip({
       onClick={toggleStellar}
       aria-label={
         connected
-          ? `${label} connected: ${stellarAddress}. Click to disconnect.`
+          ? `${label} connected: ${stellarAddress}`
           : `Connect ${label} wallet`
       }
       title={connected ? stellarAddress : `Connect ${label}`}
