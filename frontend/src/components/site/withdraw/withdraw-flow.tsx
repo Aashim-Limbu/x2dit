@@ -66,7 +66,7 @@ const PROOF_STAGES = [
   "Fetching your Merkle path",
   "Building the witness",
   "Generating Groth16 proof",
-  "Proof ready",
+  "Submitting to Stellar",
 ];
 
 function decodeOk(v: string): { denom: number; leafIndex: number } | null {
@@ -509,6 +509,13 @@ export function WithdrawFlow() {
                 lead="A brand-new address keeps the trick clean — nothing on-chain links it to the address you deposited from."
               />
 
+              {errMsg && (
+                <p role="alert" className="flex items-start gap-2 text-sm text-[var(--danger)]">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <span>{errMsg}</span>
+                </p>
+              )}
+
               <div role="radiogroup" aria-label="Destination address" className="space-y-3">
                 {/* connected wallet option */}
                 <label
@@ -722,8 +729,10 @@ export function WithdrawFlow() {
                       href={stellarExpert.account(destAddr)}
                     >
                       {truncate(destAddr)}
-                    </ExplorerLink>{" "}
-                    <span className="text-muted-ink">— a fresh address</span>
+                    </ExplorerLink>
+                    {destMode === "fresh" && (
+                      <span className="text-muted-ink"> — a fresh address</span>
+                    )}
                   </SummaryRow>
                   <SummaryRow>
                     Asset zUSDC SAC{" "}
