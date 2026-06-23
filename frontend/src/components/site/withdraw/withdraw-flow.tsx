@@ -463,6 +463,10 @@ export function WithdrawFlow() {
                   </SummaryRow>
                 </ul>
               </div>
+              <p className="text-xs text-faint">
+                Withdrawal is submitted by a single relayer (1-of-1 trust, testnet).
+                The proof binds your note; the relayer is trusted to pay the address you choose.
+              </p>
               <div className="flex justify-center">
                 <CtaButton size="lg" onClick={() => setStep("addressing")}>
                   Choose destination
