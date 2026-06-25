@@ -216,3 +216,27 @@ fn claim_rejects_double_claim() {
     client.claim(&job_id);
     client.claim(&job_id); // second claim -> JobNotProven (status now Claimed)
 }
+
+// Guard: the contract's journal reconstruction (expected_input_hash || verdict_le,
+// then sha256) MUST equal the host/guest journal_digest for the SAME input.
+// Fixture is the host output for input "hello" (Task 1). If the guest's
+// commit_slice layout or the contract's concat ever drifts, this fails.
+#[test]
+fn contract_journal_digest_matches_host_fixture() {
+    let env = Env::default();
+    let input_hash = BytesN::from_array(&env, &[
+        0x2c,0xf2,0x4d,0xba,0x5f,0xb0,0xa3,0x0e,0x26,0xe8,0x3b,0x2a,0xc5,0xb9,0xe2,0x9e,
+        0x1b,0x16,0x1e,0x5c,0x1f,0xa7,0x42,0x5e,0x73,0x04,0x33,0x62,0x93,0x8b,0x98,0x24,
+    ]);
+    let verdict: u32 = 1;
+
+    let mut buf = Bytes::from_array(&env, &input_hash.to_array());
+    buf.extend_from_array(&verdict.to_le_bytes());
+    let digest: BytesN<32> = env.crypto().sha256(&buf).to_bytes();
+
+    let expected = BytesN::from_array(&env, &[
+        0x49,0x31,0x4a,0x2e,0xd2,0xb8,0x0d,0xb1,0xd7,0x17,0xbd,0xdf,0xf8,0xd1,0x92,0x7c,
+        0x50,0x9e,0x3e,0xad,0xfb,0x3c,0xde,0xfa,0x17,0xaf,0x80,0xde,0x83,0x25,0x4e,0xba,
+    ]);
+    assert_eq!(digest, expected);
+}
