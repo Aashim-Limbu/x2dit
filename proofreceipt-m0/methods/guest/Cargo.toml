@@ -1,0 +1,17 @@
+[package]
+name = "m0-guest"
+version = "0.1.0"
+edition = "2021"
+
+# Own workspace so the host workspace doesn't try to build this with the host
+# toolchain. risc0-build invokes the RISC-V guest toolchain for it.
+[workspace]
+
+[dependencies]
+risc0-zkvm = { version = "3.0", default-features = false, features = ["std"] }
+sha2 = { version = "0.10", default-features = false }
+
+[profile.release]
+# Smaller/faster guest. Keep the guest tiny so Groth16 proving fits in ~15GB RAM.
+opt-level = 3
+lto = "thin"

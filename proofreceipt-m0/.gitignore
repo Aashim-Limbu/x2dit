@@ -1,0 +1,5 @@
+/target
+/.verifier-src
+/proof.json
+/verifier_id.txt
+Cargo.lock
