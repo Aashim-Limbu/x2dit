@@ -1,0 +1,14 @@
+[package]
+name = "m0-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+m0-methods = { path = "../methods" }
+# Host needs the `client` feature (default_prover, ExecutorEnv, ProverOpts).
+# default features (incl. std) stay on; proving is delegated to the installed r0vm.
+risc0-zkvm = { version = "3.0", features = ["client"] }
+risc0-ethereum-contracts = { workspace = true }
+sha2 = "0.10"
+hex = "0.4"
+anyhow = "1"

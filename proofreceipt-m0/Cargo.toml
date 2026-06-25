@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["host", "methods"]
+# NOTE: methods/guest is intentionally NOT a member — it has its own [workspace]
+# table so it builds with the RISC Zero (RISC-V) toolchain, not the host toolchain.
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+
+# Pin to the RISC Zero 3.0 line. This MUST match the zkVM version baked into the
+# deployed verifier's parameters.json (NethermindEth/stellar-risc0-verifier = 3.0.0).
+# Mismatch => the 4-byte seal selector won't resolve / pairing fails.
+[workspace.dependencies]
+risc0-zkvm = { version = "3.0", default-features = false }
+risc0-build = "3.0"
+risc0-ethereum-contracts = "3.0"
