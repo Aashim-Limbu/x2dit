@@ -1,14 +1,17 @@
+pub mod audit;
 pub mod config;
 pub mod facilitator;
 pub mod job;
 pub mod x402;
 
-use axum::{routing::get, Json, Router};
+use axum::{extract::DefaultBodyLimit, routing::{get, post}, Json, Router};
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
     pub cfg: Arc<config::Config>,
+    pub store: job::JobStore,
+    pub facilitator: Arc<facilitator::Facilitator>,
 }
 
 async fn health() -> Json<serde_json::Value> {
@@ -16,7 +19,11 @@ async fn health() -> Json<serde_json::Value> {
 }
 
 pub fn app(state: AppState) -> Router {
-    Router::new().route("/health", get(health)).with_state(state)
+    Router::new()
+        .route("/health", get(health))
+        .route("/audit", post(audit::post_audit).layer(DefaultBodyLimit::max(4 * 1024 * 1024)))
+        .route("/audit/:id", get(audit::get_audit))
+        .with_state(state)
 }
 
 #[cfg(test)]
@@ -42,7 +49,12 @@ mod tests {
 
     #[tokio::test]
     async fn health_ok() {
-        let app = app(AppState { cfg: Arc::new(test_cfg()) });
+        let st = AppState {
+            facilitator: Arc::new(crate::facilitator::Facilitator::new("http://unused".into(), "k".into())),
+            store: crate::job::new_store(),
+            cfg: Arc::new(test_cfg()),
+        };
+        let app = app(st);
         let res = app
             .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
             .await

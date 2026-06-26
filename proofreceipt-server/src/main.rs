@@ -1,4 +1,4 @@
-use proofreceipt_server::{app, config::Config, AppState};
+use proofreceipt_server::{app, config::Config, facilitator::Facilitator, job::new_store, AppState};
 use std::sync::Arc;
 
 #[tokio::main]
@@ -7,8 +7,10 @@ async fn main() -> anyhow::Result<()> {
     let path = std::env::args().nth(1).unwrap_or_else(|| "proofreceipt-server.toml".to_string());
     let cfg = Config::from_path(&path)?;
     let bind = cfg.http_bind.clone();
+    let facilitator = Arc::new(Facilitator::new(cfg.facilitator_url.clone(), cfg.oz_api_key.clone()));
+    let state = AppState { cfg: Arc::new(cfg), store: new_store(), facilitator };
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     println!("[serve] proofreceipt-server listening on {bind}");
-    axum::serve(listener, app(AppState { cfg: Arc::new(cfg) })).await?;
+    axum::serve(listener, app(state)).await?;
     Ok(())
 }
