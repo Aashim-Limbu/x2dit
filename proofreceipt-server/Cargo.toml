@@ -1,0 +1,24 @@
+[workspace]
+
+[package]
+name = "proofreceipt-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+anyhow = "1"
+hex = "0.4"
+base64 = "0.22"
+reqwest = { version = "0.12", features = ["json"] }
+uuid = { version = "1", features = ["v4"] }
+tracing-subscriber = "0.3"   # fmt::init() for logs
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }   # ServiceExt::oneshot for handler tests
+wiremock = "0.6"                                     # mock facilitator
+# tokio test runtime comes from the main `tokio` dep (features = ["full"] includes macros + rt).
