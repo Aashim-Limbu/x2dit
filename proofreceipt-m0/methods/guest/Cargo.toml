@@ -6,10 +6,12 @@ edition = "2021"
 # Own workspace so the host workspace doesn't try to build this with the host
 # toolchain. risc0-build invokes the RISC-V guest toolchain for it.
 [workspace]
+exclude = ["wasm-policy"]
 
 [dependencies]
 risc0-zkvm = { version = "3.0", default-features = false, features = ["std"] }
 sha2 = { version = "0.10", default-features = false }
+wasm-policy = { path = "wasm-policy" }
 
 [profile.release]
 # Smaller/faster guest. Keep the guest tiny so Groth16 proving fits in ~15GB RAM.

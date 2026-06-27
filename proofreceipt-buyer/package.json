@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "buyer": "tsx src/buyer.ts"
+    "buyer": "tsx src/buyer.ts",
+    "test:verdict": "tsx src/verdict.test.ts"
   },
   "dependencies": {
     "@x402/core": "2.16.0",

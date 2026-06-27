@@ -67,6 +67,15 @@ pub fn proof_json(
     })
 }
 
+/// The verdict is committed by the guest in the last 4 bytes of the 36-byte journal
+/// (LE u32). The host reads it from there — it does NOT recompute the audit.
+pub fn verdict_from_journal(journal: &[u8]) -> u32 {
+    if journal.len() < 36 {
+        return 0;
+    }
+    u32::from_le_bytes(journal[32..36].try_into().expect("36-byte journal"))
+}
+
 fn main() -> anyhow::Result<()> {
     use anyhow::Context;
     let (src, out_path) = parse_args(std::env::args().skip(1));
@@ -90,7 +99,7 @@ fn main() -> anyhow::Result<()> {
     let journal = receipt.journal.bytes.clone();
     let journal_digest = Sha256::digest(&journal);
     let input_hash = Sha256::digest(&input);
-    let verdict: u32 = if input.is_empty() { 0 } else { 1 };
+    let verdict: u32 = verdict_from_journal(&journal);
 
     let v = proof_json(
         &input,
@@ -109,7 +118,19 @@ fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_args, proof_json, InputSource};
+    use super::{parse_args, proof_json, verdict_from_journal, InputSource};
+
+    #[test]
+    fn verdict_from_journal_reads_le_u32() {
+        let mut journal = [0u8; 36];
+        journal[32..].copy_from_slice(&6u32.to_le_bytes()); // bits 1|2
+        assert_eq!(verdict_from_journal(&journal), 6);
+    }
+
+    #[test]
+    fn verdict_from_journal_short_is_zero() {
+        assert_eq!(verdict_from_journal(&[0u8; 10]), 0);
+    }
 
     #[test]
     fn parse_args_flags() {

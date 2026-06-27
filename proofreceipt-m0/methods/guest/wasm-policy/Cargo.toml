@@ -1,0 +1,13 @@
+[package]
+name = "wasm-policy"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone workspace so it's fully decoupled from the guest's RISC-V workspace
+# and from the host workspace: `cargo test` here builds for the HOST target with
+# zero risc0 involvement, while the guest depends on it via a path dependency.
+[workspace]
+
+[dependencies]
+# Intentionally EMPTY — pure no_std + alloc, zero deps (keeps proving tiny and the
+# security boundary auditable).

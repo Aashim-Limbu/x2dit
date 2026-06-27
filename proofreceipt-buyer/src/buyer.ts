@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
+import { readFileSync, existsSync } from "node:fs";
 import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { verifyOnChain } from "./verify.js";
+import { decodeVerdict } from "./verdict.js";
 
 const SERVER = process.env.SERVER_URL ?? "http://127.0.0.1:8081";
 const VERIFIER = process.env.VERIFIER_ID ?? "CCR6QRJJBEFKUDE4YXQ2L6VII6M6C57ENXXJ5A4HQWOO6PYKRP4KS4IU";
@@ -14,7 +16,10 @@ function hex(b: Uint8Array) { return Buffer.from(b).toString("hex"); }
 function unhex(s: string) { return Uint8Array.from(Buffer.from(s, "hex")); }
 
 async function main() {
-  const artifact = Buffer.from(process.argv[2] ?? "hello", "utf8"); // the bytes to audit
+  // Submit a real artifact: if argv[2] is a path to an existing file (e.g. a
+  // compiled contract.wasm), audit its raw bytes; otherwise treat it as a UTF-8 string.
+  const arg = process.argv[2] ?? "hello";
+  const artifact = existsSync(arg) ? readFileSync(arg) : Buffer.from(arg, "utf8");
   const signer = createEd25519Signer(SECRET, "stellar:testnet");
   const client = new x402Client().register("stellar:*", new ExactStellarScheme(signer));
   const fetchWithPay = wrapFetchWithPayment(fetch, client);
@@ -58,6 +63,15 @@ async function main() {
   // Derive the verdict from the cryptographically-committed journal (last 4 bytes, LE),
   // not the server-reported field.
   const verdict = new DataView(journal.buffer, journal.byteOffset + 32, 4).getUint32(0, true);
-  console.log(`[buyer] ✅ receipt verified: ran agreed program ${AGREED_IMAGE_ID.slice(0,8)}… on my exact ${artifact.length}-byte input; verdict=${verdict}`);
+  const findings = decodeVerdict(verdict);
+  console.log(`[buyer] ✅ receipt verified: ran agreed program ${AGREED_IMAGE_ID.slice(0,8)}… on my exact ${artifact.length}-byte contract.`);
+  if (findings.length === 0) {
+    // NOTE: "no violations" is import-level only — see verdict.ts / the policy doc.
+    // It does NOT assert the contract has no dangerous capability or that writes are auth-gated.
+    console.log(`[buyer] audit verdict: 0 — no policy violations detected (import-level checks only)`);
+  } else {
+    console.log(`[buyer] audit verdict: ${verdict} — ${findings.length} finding(s):`);
+    for (const f of findings) console.log(`  • ${f}`);
+  }
 }
 main().catch((e) => { console.error(e); process.exit(1); });
