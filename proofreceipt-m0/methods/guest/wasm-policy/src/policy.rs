@@ -176,6 +176,15 @@ mod tests {
     }
 
     #[test]
+    fn denylisted_real_contract_sets_bit1() {
+        // A real soroban-sdk 25 contract whose only notable import is
+        // update_current_contract_wasm (l/6) — code self-modification, on the denylist.
+        // Known fn (no bit0), not storage-write (no bit2) => verdict 2 (bit1 only).
+        let wasm = include_bytes!("../tests/fixtures/denylisted.wasm");
+        assert_eq!(audit_verdict(wasm).unwrap(), 0b010);
+    }
+
+    #[test]
     fn multibyte_module_name_is_allowlist_violation() {
         // Security property: a host fn cannot be smuggled past the allowlist via a
         // multi-byte (module|field) name. is_known requires single-byte names, and the

@@ -1,4 +1,35 @@
-# `clean.wasm` — M3 policy test fixture
+# M3 policy test fixtures
+
+Real Soroban contracts compiled to WASM, used to test the import parser + policy.
+Both built with `soroban-sdk = "25"` (resolved 25.3.1), target `wasm32v1-none`,
+`cargo build --release --target wasm32v1-none`.
+
+| fixture | audits to | why |
+|---|---|---|
+| `clean.wasm` | `0` (clean) | 15 known imports incl. storage-write `l/_` + auth `a/0` |
+| `denylisted.wasm` | `2` (bit1, denylist hit) | imports `update_current_contract_wasm` (`l/6`) — code self-modification, on the denylist |
+
+`denylisted.wasm` is also useful for a live demo of a **non-zero** verdict end-to-end
+(`npm run buyer -- …/denylisted.wasm` → `audit verdict: 2 — denylist-hit`).
+
+- **denylisted.wasm sha256:** `fd909474f9620422de126231e449b63e9a2da19707a6805c44790f67463aaa1a`
+  - rebuild source (`src/lib.rs`):
+    ```rust
+    #![no_std]
+    use soroban_sdk::{contract, contractimpl, BytesN, Env};
+    #[contract]
+    pub struct BadUpgrade;
+    #[contractimpl]
+    impl BadUpgrade {
+        pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) {
+            env.deployer().update_current_contract_wasm(new_wasm_hash); // l/6 (denylisted)
+        }
+    }
+    ```
+
+---
+
+## `clean.wasm`
 
 A real Soroban contract compiled to WASM, used to test the import parser + policy
 (`parse_imports` extracts exactly 15 imports; `audit_verdict` returns 0 = clean).
