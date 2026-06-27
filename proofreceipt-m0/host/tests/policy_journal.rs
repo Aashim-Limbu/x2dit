@@ -32,7 +32,10 @@ fn with_one_import(module: u8, field: u8) -> Vec<u8> {
 
 #[test]
 fn policy_fixtures_produce_expected_verdicts() {
-    // Must run in dev mode (set by the command in the plan).
+    // Always run in dev mode: this integration test asserts the committed journal
+    // verdict (real guest execution), not the cryptographic seal. Setting it here
+    // (not just via the CLI) stops a plain `cargo test` from doing real Groth16 proofs.
+    std::env::set_var("RISC0_DEV_MODE", "1");
     // include_bytes! resolves relative to THIS file (host/tests/); the fixture is in
     // the sibling methods/ tree, so two `..` are needed (host/tests -> host -> m0).
     assert_eq!(run_verdict(include_bytes!("../../methods/guest/wasm-policy/tests/fixtures/clean.wasm")), 0);
