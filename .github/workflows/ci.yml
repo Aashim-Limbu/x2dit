@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Each ProofReceipt component is an independent workspace, so they run as separate jobs.
+jobs:
+  # Pure Rust cores — no RISC Zero toolchain needed (fast, bulletproof).
+  rust-cores:
+    name: rust cores (wasm-policy + server)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: wasm-policy (parser + capability policy)
+        run: cargo test --manifest-path proofreceipt-m0/methods/guest/wasm-policy/Cargo.toml --locked
+      - name: x402 audit server
+        run: cargo test --manifest-path proofreceipt-server/Cargo.toml --locked
+
+  # Soroban settle-core contract (pulls the pinned NethermindEth verifier git dep).
+  contract:
+    name: settle-core contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --manifest-path proofreceipt-contract/contract/Cargo.toml --locked
+
+  # RISC Zero guest+host: builds the guest ELF and asserts the 4 fixture verdicts through
+  # the real guest under dev mode (no Docker / no real Groth16 proving).
+  guest-host:
+    name: guest + host (dev mode)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install RISC Zero toolchain (rzup → r0vm/cargo-risczero 3.0.x)
+        run: |
+          curl -L https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+          "$HOME/.risc0/bin/rzup" install
+      - name: m0 host + dev-mode journal verdicts
+        env:
+          RISC0_DEV_MODE: "1"
+        run: cargo test --manifest-path proofreceipt-m0/Cargo.toml -p m0-host
+
+  # TypeScript buyer: typecheck + the pure verdict decoder test.
+  buyer:
+    name: buyer (typecheck + decoder)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: proofreceipt-buyer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run test:verdict
