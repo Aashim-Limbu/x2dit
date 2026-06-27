@@ -70,9 +70,16 @@ pub async fn post_audit(
     {
         let store = st.store.clone();
         let host = st.cfg.m0_host_path.clone();
+        let timeout_secs = st.cfg.prover_timeout_secs;
+        let sem = st.prover_sem.clone();
         let id2 = id.clone();
         tokio::spawn(async move {
-            match job::run_prover(&host, artifact).await {
+            // Serialize proves (each peaks ~8GB) so a second paid request can't OOM the box.
+            let _permit = match sem.acquire_owned().await {
+                Ok(p) => p,
+                Err(_) => { job::set_error(&store, &id2, "prover semaphore closed".into()); return; }
+            };
+            match job::run_prover(&host, artifact, timeout_secs).await {
                 Ok(r) => job::set_done(&store, &id2, r),
                 Err(e) => job::set_error(&store, &id2, e.to_string()),
             }
@@ -156,11 +163,8 @@ mod tests {
 
     fn state(fac_uri: String, host: String) -> AppState {
         let c = cfg(&host);
-        AppState {
-            facilitator: Arc::new(Facilitator::new(fac_uri, c.oz_api_key.clone())),
-            cfg: Arc::new(c),
-            store: new_store(),
-        }
+        let fac = Arc::new(Facilitator::new(fac_uri, c.oz_api_key.clone()));
+        AppState::new(Arc::new(c), new_store(), fac)
     }
 
     #[tokio::test]

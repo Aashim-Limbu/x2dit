@@ -6,12 +6,26 @@ pub mod x402;
 
 use axum::{extract::DefaultBodyLimit, routing::{get, post}, Json, Router};
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 #[derive(Clone)]
 pub struct AppState {
     pub cfg: Arc<config::Config>,
     pub store: job::JobStore,
     pub facilitator: Arc<facilitator::Facilitator>,
+    /// Limits how many proves run at once (each Groth16 prove peaks ~8GB).
+    pub prover_sem: Arc<Semaphore>,
+}
+
+impl AppState {
+    pub fn new(
+        cfg: Arc<config::Config>,
+        store: job::JobStore,
+        facilitator: Arc<facilitator::Facilitator>,
+    ) -> Self {
+        let permits = cfg.max_concurrent_proves.max(1);
+        Self { cfg, store, facilitator, prover_sem: Arc::new(Semaphore::new(permits)) }
+    }
 }
 
 async fn health() -> Json<serde_json::Value> {
@@ -49,11 +63,11 @@ mod tests {
 
     #[tokio::test]
     async fn health_ok() {
-        let st = AppState {
-            facilitator: Arc::new(crate::facilitator::Facilitator::new("http://unused".into(), "k".into())),
-            store: crate::job::new_store(),
-            cfg: Arc::new(test_cfg()),
-        };
+        let st = AppState::new(
+            Arc::new(test_cfg()),
+            crate::job::new_store(),
+            Arc::new(crate::facilitator::Facilitator::new("http://unused".into(), "k".into())),
+        );
         let app = app(st);
         let res = app
             .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())

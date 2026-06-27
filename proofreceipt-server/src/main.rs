@@ -8,7 +8,7 @@ async fn main() -> anyhow::Result<()> {
     let cfg = Config::from_path(&path)?;
     let bind = cfg.http_bind.clone();
     let facilitator = Arc::new(Facilitator::new(cfg.facilitator_url.clone(), cfg.oz_api_key.clone()));
-    let state = AppState { cfg: Arc::new(cfg), store: new_store(), facilitator };
+    let state = AppState::new(Arc::new(cfg), new_store(), facilitator);
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     println!("[serve] proofreceipt-server listening on {bind}");
     axum::serve(listener, app(state)).await?;
