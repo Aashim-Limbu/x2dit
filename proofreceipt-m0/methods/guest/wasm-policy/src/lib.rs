@@ -7,5 +7,7 @@
 extern crate alloc;
 
 pub mod parser;
+pub mod policy;
 
 pub use parser::{parse_imports, Import, ParseError};
+pub use policy::audit_verdict;
