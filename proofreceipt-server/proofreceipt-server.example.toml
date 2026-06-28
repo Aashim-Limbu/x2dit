@@ -5,3 +5,5 @@ image_id = "ffc622e891883f70242e3dfea5ccb2b68b73136b30aed868f8f48242cc9eeddd"
 verifier_id = "CCR6QRJJBEFKUDE4YXQ2L6VII6M6C57ENXXJ5A4HQWOO6PYKRP4KS4IU"
 m0_host_path = "/home/aashim/hackathon/stellar-hacks/proofreceipt-m0/target/release/m0-host"
 http_bind = "127.0.0.1:8081"
+settle_contract_id = "<deployed settle-core contract id (C... from Task 4 deploy)>"
+seller_key = "e2e-seller"        # stellar CLI identity (or secret key) the seller signs submit_proof/claim with

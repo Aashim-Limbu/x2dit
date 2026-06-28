@@ -25,11 +25,13 @@ impl BadVerifier {
 pub struct StrictVerifier;
 #[contractimpl]
 impl StrictVerifier {
-    // Panics unless journal == sha256([1u8;32] ‖ 0u32.to_le_bytes()) — i.e. submit_proof
-    // built the journal from expected_input_hash + the PINNED expected_verdict (0).
+    // Panics unless journal == sha256([1u8;32] ‖ 7u32.to_le_bytes()) — i.e. submit_proof
+    // built the journal from expected_input_hash + the PINNED expected_verdict (7).
+    // Using a nonzero verdict ensures a mutation replacing the pinned verdict with a
+    // constant 0 is caught (verdict 0 would produce a different digest → panic here).
     pub fn verify(e: Env, _seal: Bytes, _image_id: BytesN<32>, journal: BytesN<32>) {
         let mut buf = Bytes::from_array(&e, &[1u8; 32]);
-        buf.extend_from_array(&0u32.to_le_bytes());
+        buf.extend_from_array(&7u32.to_le_bytes());
         let expected: BytesN<32> = e.crypto().sha256(&buf).to_bytes();
         if journal != expected { panic!("journal not built from pinned verdict"); }
     }
@@ -272,9 +274,11 @@ fn submit_proof_builds_journal_from_pinned_verdict() {
     let id = env.register(ProofReceipt, ());
     let client = ProofReceiptClient::new(&env, &id);
     client.initialize(&verifier);
-    let job_id = open_default_job(&env, &client, &token_addr, &buyer, &seller, 0);
+    let job_id = open_default_job(&env, &client, &token_addr, &buyer, &seller, 7);
     // StrictVerifier only passes if submit_proof reconstructed the journal from the
-    // pinned (ih, expected_verdict=0). If it used anything else, verify() panics.
+    // pinned (ih, expected_verdict=7). Using 7 (nonzero) ensures that a mutation
+    // replacing the pinned verdict with constant 0 would produce a different digest
+    // and cause StrictVerifier to panic — the mutation is caught.
     client.submit_proof(&job_id, &Bytes::from_array(&env, &[0u8; 4]));
     assert_eq!(client.get_job(&job_id).status, crate::storage::Status::Proven);
 }

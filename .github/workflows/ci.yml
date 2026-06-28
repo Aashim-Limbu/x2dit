@@ -67,3 +67,4 @@ jobs:
       - run: npm install
       - run: npm run typecheck
       - run: npm run test:verdict
+      - run: npm run test:escrow
