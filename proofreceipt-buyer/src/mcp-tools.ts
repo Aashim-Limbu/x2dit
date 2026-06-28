@@ -57,7 +57,7 @@ export function buildTools(cfg: EscrowConfig): ToolSpec[] {
     {
       name: "check_receipt",
       description:
-        "Check a job's on-chain status, verdict, and proof. Statuses: Open (auditing, or the auditor declined a non-clean contract), Proven (a clean proof landed and was verified on-chain), Claimed (auditor paid), Reclaimed (escrow refunded to the buyer).",
+        "Check a job's on-chain status and verdict. Statuses: Open (auditing, or the auditor declined a non-clean contract), Proven (a clean proof was verified on-chain), Claimed (auditor paid), Reclaimed (escrow refunded to the buyer).",
       inputSchema: { job_id: z.string().describe("the job_id from request_audit") },
       handler: async ({ job_id }) => {
         const r = await getReceipt(cfg, job_id);
