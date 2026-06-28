@@ -74,7 +74,7 @@ The buyer independently re-verifies the receipt against the on-chain verifier wi
 
 ## Live deployment
 
-Deployed to Stellar testnet. The predecessor settle-core completed full `open → submit_proof → claim` round trips on-chain with real Groth16 seals; the verdict-enforced escrow below (M4 — `open_job` pins the buyer's expected verdict, adds `buyer_reclaim`) is freshly deployed and initialized, with the live clean-claim / dirty-reclaim e2e pending.
+Deployed to Stellar testnet. The verdict-enforced escrow below (M4 — `open_job` pins the buyer's expected verdict, adds `buyer_reclaim`) has completed **both** live round trips on-chain with real Groth16 seals: a clean contract → proof verified → `claim` (USDC → seller, job `efb330a5…`, proof tx `4cebe3ac…`), and a denylisted contract → auditor declines → `buyer_reclaim` (USDC → buyer, job `ec6dceb9…`, reclaim tx `7506ae82…`).
 
 | Contract | ID |
 |---|---|
