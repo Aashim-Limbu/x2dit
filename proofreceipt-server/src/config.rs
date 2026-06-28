@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 fn default_http_bind() -> String { "127.0.0.1:8081".to_string() }
+fn default_stellar_network() -> String { "testnet".to_string() }
 fn default_facilitator() -> String { "https://channels.openzeppelin.com/x402/testnet".to_string() }
 fn default_network() -> String { "stellar:testnet".to_string() }
 fn default_asset() -> String { "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA".to_string() }
@@ -37,6 +38,12 @@ pub struct Config {
     /// concurrent request from OOM-killing the box.
     #[serde(default = "default_max_concurrent_proves")]
     pub max_concurrent_proves: usize,
+    /// settle-core (escrow) contract id the seller submits proofs to.
+    pub settle_contract_id: String,
+    /// `stellar` CLI identity name (or secret key) the seller signs submit_proof/claim with.
+    pub seller_key: String,
+    #[serde(default = "default_stellar_network")]
+    pub stellar_network: String,
 }
 
 impl Config {

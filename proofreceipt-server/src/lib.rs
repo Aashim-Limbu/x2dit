@@ -1,5 +1,6 @@
 pub mod audit;
 pub mod config;
+pub mod escrow;
 pub mod facilitator;
 pub mod job;
 pub mod x402;
@@ -37,6 +38,7 @@ pub fn app(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/audit", post(audit::post_audit).layer(DefaultBodyLimit::max(4 * 1024 * 1024)))
         .route("/audit/:id", get(audit::get_audit))
+        .route("/escrow-job", post(escrow::post_escrow_job).layer(DefaultBodyLimit::max(4 * 1024 * 1024)))
         .with_state(state)
 }
 
@@ -56,6 +58,8 @@ mod tests {
             image_id = "00"
             verifier_id = "CV"
             m0_host_path = "/bin/true"
+            settle_contract_id = "CID123"
+            seller_key = "seller"
             "#,
         )
         .unwrap()

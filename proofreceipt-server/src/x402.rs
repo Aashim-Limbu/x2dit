@@ -130,6 +130,8 @@ mod tests {
             image_id = "3601e6ac"
             verifier_id = "CV"
             m0_host_path = "/bin/true"
+            settle_contract_id = "CID123"
+            seller_key = "seller"
             "#,
         ).unwrap()
     }
