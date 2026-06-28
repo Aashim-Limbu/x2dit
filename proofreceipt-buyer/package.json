@@ -8,7 +8,8 @@
     "buyer": "tsx src/buyer.ts",
     "test:verdict": "tsx src/verdict.test.ts",
     "escrow:run": "tsx src/escrow-run.ts",
-    "test:escrow": "tsx src/escrow.test.ts"
+    "test:escrow": "tsx src/escrow.test.ts",
+    "test:client": "tsx src/escrow-client.test.ts"
   },
   "dependencies": {
     "@x402/core": "2.16.0",
