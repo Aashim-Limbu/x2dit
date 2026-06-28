@@ -9,17 +9,20 @@
     "test:verdict": "tsx src/verdict.test.ts",
     "escrow:run": "tsx src/escrow-run.ts",
     "test:escrow": "tsx src/escrow.test.ts",
-    "test:client": "tsx src/escrow-client.test.ts"
+    "test:client": "tsx src/escrow-client.test.ts",
+    "mcp": "tsx src/mcp.ts",
+    "test:mcp": "tsx src/mcp-tools.test.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@stellar/stellar-sdk": "^14.6.1",
     "@x402/core": "2.16.0",
     "@x402/fetch": "2.16.0",
-    "@x402/stellar": "2.16.0",
-    "@stellar/stellar-sdk": "^14.6.1"
+    "@x402/stellar": "2.16.0"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
-    "@types/node": "^22.0.0"
+    "typescript": "^5.6.0"
   }
 }
