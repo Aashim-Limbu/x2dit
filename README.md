@@ -111,7 +111,7 @@ cargo build --release --manifest-path proofreceipt-m0/Cargo.toml
 # 2. Configure and run the seller's audit service.
 cp proofreceipt-server/proofreceipt-server.example.toml proofreceipt-server/proofreceipt-server.toml
 #   fill pay_to, oz_api_key, image_id, m0_host_path
-cargo run --release --manifest-path proofreceipt-server/Cargo.toml
+cargo run --release --manifest-path proofreceipt-server/Cargo.toml -- proofreceipt-server/proofreceipt-server.toml
 
 # 3. Run the buyer: pay over x402, poll for the receipt, re-verify it on-chain.
 #    Pass the path to a real .wasm file as the artifact to audit.
@@ -123,7 +123,7 @@ Verdict-enforced escrow e2e (real USDC on testnet) — the buyer pins `expected_
 ```sh
 # 1. Build the prover + start the seller (which now also runs the escrow worker).
 cargo build --release --manifest-path proofreceipt-m0/Cargo.toml
-cargo run   --release --manifest-path proofreceipt-server/Cargo.toml   # needs settle_contract_id + seller_key in the toml
+cargo run   --release --manifest-path proofreceipt-server/Cargo.toml -- proofreceipt-server/proofreceipt-server.toml   # needs settle_contract_id + seller_key in the toml
 
 # 2. Fund the buyer with testnet USDC (faucet.circle.com → Stellar testnet) + a USDC trustline.
 # 3. Drive both paths (resolves buyer/seller from the e2e-buyer / e2e-seller identities):
